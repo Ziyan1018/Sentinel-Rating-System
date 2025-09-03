@@ -1,0 +1,132 @@
+<!doctype html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Sentinel Appendix Demo</title>
+</head>
+<body>
+<h3>Sentinel Appendix Demo (Open DevTools Console)</h3>
+
+<script type="module">
+import * as ed from "https://cdn.jsdelivr.net/npm/@noble/ed25519@1.8.1/+esm";
+import bs58 from "https://cdn.jsdelivr.net/npm/bs58@6.0.0/+esm";
+import { sha256 } from "https://cdn.jsdelivr.net/npm/js-sha256@0.11.0/+esm";
+
+const bytesToHex = (u8) => Array.from(u8).map(b => b.toString(16).padStart(2,"0")).join("");
+const hexToBytes = (hex) => new Uint8Array(hex.match(/.{1,2}/g).map(h => parseInt(h,16)));
+const utf8 = (s) => new TextEncoder().encode(s);
+
+/* === Key generation and local storage ===
+   Generates a new Ed25519 key pair if none exists.
+   Stores the private key in localStorage for persistence.
+*/
+async function loadOrCreateKeys() {
+  const saved = localStorage.getItem('sentinel.ed25519.privateKey');
+  if (saved) {
+    const privateKey = Uint8Array.from(saved.split(',').map(Number));
+    const publicKey  = await ed.getPublicKey(privateKey);
+    return { privateKey, publicKey };
+  }
+  const privateKey = ed.utils.randomPrivateKey();
+  const publicKey  = await ed.getPublicKey(privateKey);
+  localStorage.setItem('sentinel.ed25519.privateKey', Array.from(privateKey).toString());
+  return { privateKey, publicKey };
+}
+
+/* === DID Representation ===
+   Encodes the Ed25519 public key into a did:key identifier
+   using Base58 for compactness.
+*/
+function publicKeyToDID(publicKey) {
+  const base58Key = bs58.encode(publicKey);
+  return `did:key:${base58Key}`;
+}
+
+/* === Event Construction ===
+   Builds a JSON event object for a rating.
+   Includes content, metadata tags, and a SHA-256 hash of the content.
+*/
+function createRatingEvent(pubkey, dimension, score, resourceURI) {
+  const contentObj = { dimension, score };
+  const contentStr = JSON.stringify(contentObj);
+  const contentHashHex = sha256(contentStr);
+  return {
+    kind: 30015,
+    pubkey: bytesToHex(pubkey),
+    content: contentStr,
+    tags: [
+      ["r", resourceURI],
+      ["t", Date.now().toString()],
+      ["h", contentHashHex]
+    ]
+  };
+}
+
+/* === Signing ===
+   Signs the serialized event using the private key.
+   Appends the signature as a hex string to the event.
+*/
+async function signEvent(event, privateKey) {
+  const serialized = JSON.stringify(event);
+  const sigBytes = await ed.sign(utf8(serialized), privateKey);
+  event.sig = bytesToHex(sigBytes);
+  return event;
+}
+
+/* === Verification ===
+   Recomputes the serialized form of the event (without sig).
+   Uses the public key to check the Ed25519 signature.
+*/
+async function verifyEvent(event, publicKey) {
+  const serialized = JSON.stringify({
+    kind: event.kind,
+    pubkey: event.pubkey,
+    content: event.content,
+    tags: event.tags
+  });
+  const sigBytes = hexToBytes(event.sig);
+  const pubKeyBytes = typeof publicKey === "string" ? hexToBytes(publicKey) : publicKey;
+  return await ed.verify(sigBytes, utf8(serialized), pubKeyBytes);
+}
+
+/* === Relay Transmission (Example only) ===
+   Connects to a relay server via WebSocket.
+   In this demo the relay is illustrative and not functional.
+*/
+const relay = new WebSocket("wss://relay.example.org");
+relay.onopen = () => {
+  console.log("Connected to relay");
+};
+function sendToRelay(event) {
+  if (relay.readyState === WebSocket.OPEN) {
+    relay.send(JSON.stringify(["EVENT", event]));
+  }
+}
+
+/* === Demo Run ===
+   Demonstrates the full workflow:
+   - Generate/load keys
+   - Derive DID
+   - Create rating event
+   - Sign and verify the event
+*/
+(async () => {
+  const { privateKey, publicKey } = await loadOrCreateKeys();
+  console.log("[Keys] priv(len):", privateKey.length, "pub(len):", publicKey.length);
+  console.log("[DID]", publicKeyToDID(publicKey));
+
+  const ev = createRatingEvent(publicKey, "quality", 5, "https://example.com/article");
+  console.log("[Event]", ev);
+
+  await signEvent(ev, privateKey);
+  console.log("[Signed Event]", ev);
+
+  const ok = await verifyEvent(ev, publicKey);
+  console.log("[Verify] valid =", ok);
+
+  // sendToRelay(ev);
+})();
+</script>
+</body>
+</html>
