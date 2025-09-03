@@ -1,19 +1,19 @@
 # Sentinel-Rating-System
-Prototype code for dissertation: Sentinel – Decentralized Rating System with Crypto Authentication
+Prototype code for dissertation: Sentinel——A Decentralized Rating System with a Cryptographic Authentication Mechanism
 # Sentinel – Decentralized Rating System (Prototype Code)
 
 This repository contains the prototype code accompanying the dissertation:
 
-> **Sentinel: A Decentralized Rating System with DID-based Authentication**
+> **Sentinel: A Decentralized Rating System with a Cryptographic Authentication Mechanism**
 
 It includes two main components:
 
-- `sentinel_demo.html` – Browser-based prototype implementation (Implementation chapter)  
+- `sentinel_implementation.html` – Browser-based prototype implementation (Implementation chapter)  
 - `experiment.py` – Python simulation script (Experiments chapter)  
 
 ---
 
-##  1. Implementation Prototype (`sentinel_demo.html`)
+##  1. Implementation Prototype (`sentinel_implementation.html`)
 
 A browser-based JavaScript prototype that demonstrates the key mechanisms described in the dissertation:
 
@@ -24,7 +24,7 @@ A browser-based JavaScript prototype that demonstrates the key mechanisms descri
 - Example relay transmission via WebSocket (illustrative only)  
 
 ### How to run
-1. Download `sentinel_demo.html`.  
+1. Download `sentinel_implementation.html`.  
 2. Open it in a modern browser (Chrome/Edge).  
 3. Open **Developer Tools → Console**.  
 
